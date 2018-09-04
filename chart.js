@@ -5,6 +5,8 @@ var nodes = [];
 var force, node, data, maxVal;
 var brake = 0.2;
 var radius = d3.scale.sqrt().range([10, 20]);
+var imageDons = 0;
+var imageDonsMainCount = 0;
 
 var partyCentres = { 
     con: { x: w / 3, y: h / 3.3}, 
@@ -21,7 +23,7 @@ var entityCentres = {
 		individual: {x: w / 3.65, y: h / 3.3},
 	};
 
-var fill = d3.scale.ordinal().range(["#F02233", "#087FBD", "#FDBB30"]);
+var fill = d3.scale.ordinal().range(["#EFE922", "#E8591B", "#DB14E5"]);
 
 var svgCentre = { 
     x: w / 3.6, y: h / 2
@@ -47,6 +49,7 @@ function transition(name) {
 		$("#value-scale").fadeIn(1000);
 		$("#view-donor-type").fadeOut(250);
 		$("#view-source-type").fadeOut(250);
+		$("#view-by-donor-amount").fadeOut(250);
 		$("#view-party-type").fadeOut(250);
 		return total();
 		//location.reload();
@@ -56,6 +59,7 @@ function transition(name) {
 		$("#value-scale").fadeOut(250);
 		$("#view-donor-type").fadeOut(250);
 		$("#view-source-type").fadeOut(250);
+		$("#view-by-donor-amount").fadeOut(250);
 		$("#view-party-type").fadeIn(1000);
 		return partyGroup();
 	}
@@ -64,17 +68,30 @@ function transition(name) {
 		$("#value-scale").fadeOut(250);
 		$("#view-party-type").fadeOut(250);
 		$("#view-source-type").fadeOut(250);
+		$("#view-by-donor-amount").fadeOut(250);
 		$("#view-donor-type").fadeIn(1000);
 		return donorType();
 	}
-	if (name === "group-by-money-source")
+	if (name === "group-by-money-source"){
 		$("#initial-content").fadeOut(250);
 		$("#value-scale").fadeOut(250);
 		$("#view-donor-type").fadeOut(250);
 		$("#view-party-type").fadeOut(250);
+		$("#view-by-donor-amount").fadeOut(250);
 		$("#view-source-type").fadeIn(1000);
-		return fundsType();
+		return fundsType();	
 	}
+	if (name === "group-by-donor-amount")
+		$("#initial-content").fadeOut(250);
+		$("#value-scale").fadeOut(250);
+		$("#view-donor-type").fadeOut(250);
+		$("#view-party-type").fadeOut(250);
+		$("#view-source-type").fadeOut(250);
+		$("#view-by-donor-amount").fadeIn(1000);
+		return amountType();
+		
+	}
+	
 
 function start() {
 
@@ -86,6 +103,7 @@ function start() {
 		.attr("donor", function(d) { return d.donor; })
 		.attr("entity", function(d) { return d.entity; })
 		.attr("party", function(d) { return d.party; })
+		.attr("onclick", function(d) { return "goTo('"+d.donor+"')"; })
 		// disabled because of slow Firefox SVG rendering
 		// though I admit I'm asking a lot of the browser and cpu with the number of nodes
 		//.style("opacity", 0.9)
@@ -142,6 +160,20 @@ function fundsType() {
 		.start();
 }
 
+function amountType() {
+	force.gravity(0)
+		.friction(0.75)
+		.charge(function(d) { return -Math.pow(d.radius, 2.0) / 3; })
+		.on("tick", amounter)
+		.start();
+}
+
+function amounter(e) {
+	node.each(amounterBase(e.alpha));
+
+		node.attr("cx", function(d) { return d.x; })
+			.attr("cy", function(d) {return d.y; });
+}
 function parties(e) {
 	node.each(moveToParties(e.alpha));
 
@@ -173,6 +205,33 @@ function all(e) {
 }
 
 
+function amounterBase(alpha) {
+	return function(d) {
+		var centreX = svgCentre.x + 15;
+			if (d.value <= 50000) {
+				centreX = svgCentre.x + 35;
+				centreY = svgCentre.y + 200;
+			} else if (d.value <= 150000) {
+				centreX = svgCentre.x + 35;
+				centreY = svgCentre.y + 4;
+			} else if (d.value <= 1000001) {
+				centreX = svgCentre.x + 35;
+				centreY = svgCentre.y - 250;
+			} else  if (d.value <= 10000001) {
+				centreX = svgCentre.x + 450;
+				centreY = svgCentre.y + 70;
+			} else  if (d.value >= 10000001) {
+				centreX = svgCentre.x + 450;
+				centreY = svgCentre.y - 140;
+			} else {
+				centreY = svgCentre.y;
+			}
+
+		d.x += (centreX - d.x) * (brake + 0.06) * alpha * 1.2;
+		d.y += (centreY - d.y) * (brake + 0.06) * alpha * 1.2;
+	};
+}
+
 function moveToCentre(alpha) {
 	return function(d) {
 		var centreX = svgCentre.x + 75;
@@ -196,6 +255,7 @@ function moveToCentre(alpha) {
 		d.y += (centreY - 100 - d.y) * (brake + 0.06) * alpha * 1.2;
 	};
 }
+
 
 function moveToParties(alpha) {
 	return function(d) {
@@ -307,6 +367,17 @@ function display(data) {
 	return start();
 }
 
+function createTheView(free){
+	$('#mainCanvas').append("<div id='generic"+free+"'><button onclick="+"shower('display"+free+"')"+">Recent Views</button> <div id='display"+free+"'> </div></div>");
+}
+function displayNoner(free){
+	$('#display'+free).css('display','none');
+}
+function shower(free){
+	$('#'+free).toggle();
+}
+
+
 function mouseover(d, i) {
 	// tooltip popup
 	var mosie = d3.select(this);
@@ -316,6 +387,8 @@ function mouseover(d, i) {
 	var entity = d.entityLabel;
 	var offset = $("svg").offset();
 	
+	helpHear({donor: donor, amount: amount+' pounds'});
+	
 
 
 	// image url that want to check
@@ -324,8 +397,25 @@ function mouseover(d, i) {
 	
 	
 	// *******************************************
+	if(imageDonsMainCount == 0){
+		createTheView(imageDonsMainCount+1);
+		imageDonsMainCount++;
+	}
+	
+	if(imageDons == 39){
+		displayNoner(imageDonsMainCount);
+		imageDonsMainCount++;
+		imageDons=0;
+		createTheView(imageDonsMainCount);
+	}else{
+		imageDons++;
+		
+	}
 	
 	
+	
+	$('#tagDisplay').css('display','none');
+	$('#display'+imageDonsMainCount).prepend("<span style='margin-left: 2%; margin-right: 2%;'><img src='" + imageFile + "' height='42' width='42' onError='this.src=\"https://github.com/favicon.ico\";'></span>");
 	
 
 	
